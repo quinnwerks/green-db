@@ -84,24 +84,33 @@ impl DbFile {
         })
     }
 
-    pub fn read_entry_at(&self, mut fd: &File, offset: u64) -> Result<DbFileEntry, Error> {
+    pub fn read_entry_at(&self, mut fd: &File, offset: u64) -> Result<Option<DbFileEntry>, Error> {
         let mut id_raw: [u8; size_of::<u64>()] = [0; size_of::<u64>()];
         let mut alive_raw: [u8; size_of::<bool>()] = [0; size_of::<bool>()];
         let mut data = vec![0; self.header.data_size as usize];
         fd.seek(SeekFrom::Start(offset))?;
-        fd.read_exact(&mut id_raw)?;
+        let mut num_bytes_read = fd.read(&mut id_raw)?;
+        if num_bytes_read != id_raw.len() {
+            return Ok(None);
+        }
         fd.seek(SeekFrom::Start(offset + size_of::<u64>() as u64))?;
-        fd.read_exact(&mut alive_raw)?;
+        num_bytes_read = fd.read(&mut alive_raw)?;
+        if num_bytes_read != alive_raw.len() {
+            return Ok(None);
+        }
         fd.seek(SeekFrom::Start(
             offset + (size_of::<u64>() + size_of::<bool>()) as u64,
         ))?;
-        fd.read_exact(&mut data)?;
+        num_bytes_read = fd.read(&mut data)?;
+        if num_bytes_read != data.len() {
+            return Ok(None);
+        }
         println!("{:?}", alive_raw);
-        Ok(DbFileEntry {
+        Ok(Some(DbFileEntry {
             id: u64::from_ne_bytes(id_raw),
             alive: alive_raw[0] != 0,
             data: Vec::from(data),
-        })
+        }))
     }
 
     fn write_entry_at(
@@ -174,7 +183,9 @@ mod integ_tests {
             _ => (),
         };
 
-        let new_entry_read = db_file.read_entry_at(&fd, size_of::<DbFileHeader>() as u64)?;
+        let new_entry_read = db_file
+            .read_entry_at(&fd, size_of::<DbFileHeader>() as u64)?
+            .unwrap();
         assert_eq!(new_entry, new_entry_read);
         return Ok(());
     }
