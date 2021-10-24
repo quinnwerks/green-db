@@ -5,12 +5,14 @@ use std::path::PathBuf;
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct DbFileHeader {
-    entry_size: u64,
+    data_size: u64,
     num_entries: u64,
 }
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct DbFileEntry {
+    id: u64,
+    alive: bool,
     data: Vec<u8>,
 }
 
@@ -28,8 +30,8 @@ impl PartialEq for DbFile {
 impl Eq for DbFile {}
 
 impl DbFile {
-    pub fn new_to_disk(entry_size: u64, path: &PathBuf) -> Result<DbFile, Error> {
-        let db_file = DbFile::new_in_mem(entry_size, 0, path);
+    pub fn new_to_disk(data_size: u64, path: &PathBuf) -> Result<DbFile, Error> {
+        let db_file = DbFile::new_in_mem(data_size, 0, path);
         db_file.to_disk()?;
         Ok(db_file)
     }
@@ -47,10 +49,10 @@ impl DbFile {
         self.write_entry_at(&fd, SeekFrom::End(0), entry)
     }
 
-    fn new_in_mem(entry_size: u64, num_entries: u64, path: &PathBuf) -> DbFile {
+    fn new_in_mem(data_size: u64, num_entries: u64, path: &PathBuf) -> DbFile {
         DbFile {
             header: DbFileHeader {
-                entry_size: entry_size,
+                data_size: data_size,
                 num_entries: num_entries,
             },
             path: PathBuf::from(path),
@@ -63,31 +65,41 @@ impl DbFile {
     }
 
     fn write_header(&self, mut fd: File) -> Result<(), Error> {
-        fd.write_all(&self.header.entry_size.to_ne_bytes())?;
+        fd.write_all(&self.header.data_size.to_ne_bytes())?;
         fd.write_all(&self.header.num_entries.to_ne_bytes())?;
         Ok(())
     }
 
     fn read_header(mut fd: File) -> Result<DbFileHeader, Error> {
-        let mut entry_size_raw: [u8; size_of::<u64>()] = [0; 8];
-        let mut num_entries_raw: [u8; size_of::<u64>()] = [0; 8];
-        fd.read_exact(&mut entry_size_raw)?;
-        fd.seek(SeekFrom::Start(8))?;
+        let mut data_size_raw: [u8; size_of::<u64>()] = [0; size_of::<u64>()];
+        let mut num_entries_raw: [u8; size_of::<u64>()] = [0; size_of::<u64>()];
+        fd.read_exact(&mut data_size_raw)?;
+        fd.seek(SeekFrom::Start(size_of::<u64>() as u64))?;
         fd.read_exact(&mut num_entries_raw)?;
-        let entry_size = u64::from_ne_bytes(entry_size_raw);
+        let data_size = u64::from_ne_bytes(data_size_raw);
         let num_entries = u64::from_ne_bytes(num_entries_raw);
         Ok(DbFileHeader {
-            entry_size,
+            data_size,
             num_entries,
         })
     }
 
     pub fn read_entry_at(&self, mut fd: &File, offset: u64) -> Result<DbFileEntry, Error> {
-        let mut data = vec![0; self.header.entry_size as usize];
+        let mut id_raw: [u8; size_of::<u64>()] = [0; size_of::<u64>()];
+        let mut alive_raw: [u8; size_of::<bool>()] = [0; size_of::<bool>()];
+        let mut data = vec![0; self.header.data_size as usize];
         fd.seek(SeekFrom::Start(offset))?;
+        fd.read_exact(&mut id_raw)?;
+        fd.seek(SeekFrom::Start(offset + size_of::<u64>() as u64))?;
+        fd.read_exact(&mut alive_raw)?;
+        fd.seek(SeekFrom::Start(
+            offset + (size_of::<u64>() + size_of::<bool>()) as u64,
+        ))?;
         fd.read_exact(&mut data)?;
-        println!("{:?}", data);
+        println!("{:?}", alive_raw);
         Ok(DbFileEntry {
+            id: u64::from_ne_bytes(id_raw),
+            alive: alive_raw[0] != 0,
             data: Vec::from(data),
         })
     }
@@ -99,8 +111,14 @@ impl DbFile {
         entry: &DbFileEntry,
     ) -> Result<(), Error> {
         fd.seek(location)?;
+        fd.write(&entry.id.to_ne_bytes())?;
+        fd.write(&[entry.alive as u8])?;
         fd.write(&entry.data)?;
         Ok(())
+    }
+
+    fn get_entry_size(&self) -> usize {
+        size_of::<u64>() + self.header.data_size as usize
     }
 }
 
@@ -142,6 +160,8 @@ mod integ_tests {
         };
         let db_file = DbFile::new_to_disk(3, &setup.path)?;
         let new_entry = DbFileEntry {
+            id: 5,
+            alive: true,
             data: Vec::from(String::from("abc").as_bytes()),
         };
 
