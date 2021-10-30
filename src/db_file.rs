@@ -253,11 +253,6 @@ mod integ_tests {
             path: PathBuf::from("test_find_entry_is_dead.db"),
         };
         let db_file = DbFile::new_to_disk(3, &setup.path)?;
-        let new_entry_dummy = DbFileEntry {
-            id: 2,
-            alive: true,
-            data: Vec::from(String::from("abc").as_bytes()),
-        };
         let new_entry = DbFileEntry {
             id: 5,
             alive: false,
@@ -271,7 +266,6 @@ mod integ_tests {
 
         let new_entry_read = db_file.find_entry(&fd, 5)?;
         db_file.append_entry(&fd, &new_entry)?;
-        db_file.append_entry(&fd, &new_entry_dummy)?;
 
         assert_eq!(None, new_entry_read);
 
