@@ -49,6 +49,19 @@ impl DbFile {
         self.write_entry_at(&fd, SeekFrom::End(0), entry)
     }
 
+    pub fn find_entry(&self, fd: &File, entry_id: u64) -> Result<Option<DbFileEntry>, Error> {
+        let mut offset = size_of::<DbFileHeader>() as u64;
+        let mut entry: Option<DbFileEntry> = None;
+        println!("entry:{:?}", entry);
+        while {
+            println!("entry:{:?}", entry);
+            entry = self.read_entry_at(fd, offset)?;
+            offset += self.header.num_entries;
+            entry.as_ref() != None && entry.as_ref().unwrap().id != entry_id
+        } {}
+        Ok(entry)
+    }
+
     fn new_in_mem(data_size: u64, num_entries: u64, path: &PathBuf) -> DbFile {
         DbFile {
             header: DbFileHeader {
@@ -159,7 +172,7 @@ mod integ_tests {
         let db_file_read = DbFile::new_from_disk(&setup.path)?;
 
         assert_eq!(db_file, db_file_read);
-        return Ok(());
+        Ok(())
     }
 
     #[test]
@@ -187,6 +200,33 @@ mod integ_tests {
             .read_entry_at(&fd, size_of::<DbFileHeader>() as u64)?
             .unwrap();
         assert_eq!(new_entry, new_entry_read);
-        return Ok(());
+        Ok(())
+    }
+
+    #[test]
+    fn test_find_entry_exists() -> Result<(), Error> {
+        let setup = IntegTest {
+            path: PathBuf::from("test_find_entry_exists.db"),
+        };
+        let db_file = DbFile::new_to_disk(3, &setup.path)?;
+        let new_entry = DbFileEntry {
+            id: 5,
+            alive: true,
+            data: Vec::from(String::from("abc").as_bytes()),
+        };
+
+        let fd = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open(&setup.path)?;
+        match db_file.append_entry(&fd, &new_entry) {
+            Err(why) => panic!("{}", why),
+            _ => (),
+        };
+
+        let new_entry_read = db_file.find_entry(&fd, 5)?.unwrap();
+        assert_eq!(new_entry, new_entry_read);
+
+        Ok(())
     }
 }
