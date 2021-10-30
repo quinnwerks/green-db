@@ -52,9 +52,7 @@ impl DbFile {
     pub fn find_entry(&self, fd: &File, entry_id: u64) -> Result<Option<DbFileEntry>, Error> {
         let mut offset = size_of::<DbFileHeader>() as u64;
         let mut entry: Option<DbFileEntry> = None;
-        println!("entry:{:?}", entry);
         while {
-            println!("entry:{:?}", entry);
             entry = self.read_entry_at(fd, offset)?;
             offset += self.header.num_entries;
             entry.as_ref() != None && entry.as_ref().unwrap().id != entry_id
@@ -118,7 +116,6 @@ impl DbFile {
         if num_bytes_read != data.len() {
             return Ok(None);
         }
-        println!("{:?}", alive_raw);
         Ok(Some(DbFileEntry {
             id: u64::from_ne_bytes(id_raw),
             alive: alive_raw[0] != 0,
@@ -223,6 +220,54 @@ mod integ_tests {
             Err(why) => panic!("{}", why),
             _ => (),
         };
+
+        let new_entry_read = db_file.find_entry(&fd, 5)?.unwrap();
+        assert_eq!(new_entry, new_entry_read);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_find_entry_doesnt_exist() -> Result<(), Error> {
+        let setup = IntegTest {
+            path: PathBuf::from("test_find_entry_doesnt_exist.db"),
+        };
+        let db_file = DbFile::new_to_disk(3, &setup.path)?;
+
+        let fd = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open(&setup.path)?;
+
+        let new_entry_read = db_file.find_entry(&fd, 5)?;
+        assert_eq!(None, new_entry_read);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_find_entry_exists_many_entries() -> Result<(), Error> {
+        let setup = IntegTest {
+            path: PathBuf::from("test_find_entry_exists_many_entries.db"),
+        };
+        let db_file = DbFile::new_to_disk(3, &setup.path)?;
+        let new_entry_dummy = DbFileEntry {
+            id: 5,
+            alive: true,
+            data: Vec::from(String::from("abc").as_bytes()),
+        };
+        let new_entry = DbFileEntry {
+            id: 5,
+            alive: true,
+            data: Vec::from(String::from("abc").as_bytes()),
+        };
+
+        let fd = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open(&setup.path)?;
+        db_file.append_entry(&fd, &new_entry_dummy)?;
+        db_file.append_entry(&fd, &new_entry)?;
 
         let new_entry_read = db_file.find_entry(&fd, 5)?.unwrap();
         assert_eq!(new_entry, new_entry_read);
