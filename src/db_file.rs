@@ -55,7 +55,8 @@ impl DbFile {
         while {
             entry = self.read_entry_at(fd, offset)?;
             offset += self.header.num_entries;
-            entry.as_ref() != None && entry.as_ref().unwrap().id != entry_id
+            let entry_ref = entry.as_ref();
+            entry_ref != None && (entry_ref.unwrap().id != entry_id || !entry_ref.unwrap().alive)
         } {}
         Ok(entry)
     }
@@ -240,6 +241,37 @@ mod integ_tests {
             .open(&setup.path)?;
 
         let new_entry_read = db_file.find_entry(&fd, 5)?;
+        assert_eq!(None, new_entry_read);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_find_entry_is_dead() -> Result<(), Error> {
+        let setup = IntegTest {
+            path: PathBuf::from("test_find_entry_doesnt_exist.db"),
+        };
+        let db_file = DbFile::new_to_disk(3, &setup.path)?;
+        let new_entry_dummy = DbFileEntry {
+            id: 2,
+            alive: true,
+            data: Vec::from(String::from("abc").as_bytes()),
+        };
+        let new_entry = DbFileEntry {
+            id: 5,
+            alive: false,
+            data: Vec::from(String::from("abc").as_bytes()),
+        };
+
+        let fd = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open(&setup.path)?;
+
+        let new_entry_read = db_file.find_entry(&fd, 5)?;
+        db_file.append_entry(&fd, &new_entry)?;
+        db_file.append_entry(&fd, &new_entry_dummy)?;
+
         assert_eq!(None, new_entry_read);
 
         Ok(())
