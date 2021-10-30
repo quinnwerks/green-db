@@ -144,7 +144,8 @@ impl DbFile {
 }
 
 #[cfg(test)]
-mod integ_tests {
+mod unit_tests {
+    use super::*;
     use std::fs::remove_file;
     use std::fs::OpenOptions;
 
@@ -160,7 +161,6 @@ mod integ_tests {
         }
     }
 
-    use super::*;
     #[test]
     fn test_create_and_read_db_file() -> Result<(), Error> {
         let setup = IntegTest {
