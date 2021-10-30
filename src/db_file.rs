@@ -51,10 +51,11 @@ impl DbFile {
 
     pub fn find_entry(&self, fd: &File, entry_id: u64) -> Result<Option<DbFileEntry>, Error> {
         let mut offset = size_of::<DbFileHeader>() as u64;
-        let mut entry: Option<DbFileEntry> = None;
+        let entry_size = self.get_entry_size();
+        let mut entry: Option<DbFileEntry>;
         while {
             entry = self.read_entry_at(fd, offset)?;
-            offset += self.header.num_entries;
+            offset += entry_size;
             let entry_ref = entry.as_ref();
             entry_ref != None && (entry_ref.unwrap().id != entry_id || !entry_ref.unwrap().alive)
         } {}
@@ -137,8 +138,8 @@ impl DbFile {
         Ok(())
     }
 
-    fn get_entry_size(&self) -> usize {
-        size_of::<u64>() + self.header.data_size as usize
+    fn get_entry_size(&self) -> u64 {
+        size_of::<u64>() as u64 + self.header.data_size + 1
     }
 }
 
@@ -249,7 +250,7 @@ mod integ_tests {
     #[test]
     fn test_find_entry_is_dead() -> Result<(), Error> {
         let setup = IntegTest {
-            path: PathBuf::from("test_find_entry_doesnt_exist.db"),
+            path: PathBuf::from("test_find_entry_is_dead.db"),
         };
         let db_file = DbFile::new_to_disk(3, &setup.path)?;
         let new_entry_dummy = DbFileEntry {
@@ -282,16 +283,16 @@ mod integ_tests {
         let setup = IntegTest {
             path: PathBuf::from("test_find_entry_exists_many_entries.db"),
         };
-        let db_file = DbFile::new_to_disk(3, &setup.path)?;
+        let db_file = DbFile::new_to_disk(2, &setup.path)?;
         let new_entry_dummy = DbFileEntry {
-            id: 5,
+            id: 4,
             alive: true,
-            data: Vec::from(String::from("abc").as_bytes()),
+            data: Vec::from(String::from("aa").as_bytes()),
         };
         let new_entry = DbFileEntry {
             id: 5,
             alive: true,
-            data: Vec::from(String::from("abc").as_bytes()),
+            data: Vec::from(String::from("ab").as_bytes()),
         };
 
         let fd = OpenOptions::new()
