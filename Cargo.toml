@@ -1,5 +1,5 @@
 [package]
-name = "naive_db"
+name = "green-db"
 version = "0.1.0"
 authors = ["Quinn Smith <quinn.smith98@gmail.com>"]
 edition = "2018"
