@@ -9,6 +9,7 @@ pub struct DbError {
 #[derive(Debug)]
 pub enum DbErrorType {
     TableNotFound,
+    Misc,
 }
 
 impl Display for DbError {

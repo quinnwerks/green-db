@@ -1,3 +1,4 @@
+use crate::db_interfaces::*;
 use std::fs::File;
 use std::io::{Error, Read, Seek, SeekFrom, Write};
 use std::mem::size_of;
@@ -140,6 +141,31 @@ impl DbFile {
 
     fn get_entry_size(&self) -> u64 {
         size_of::<u64>() as u64 + self.header.data_size + 1
+    }
+}
+
+impl DbStorageEntry for DbFileEntry {
+    fn set_entry_id(&mut self, id: u64) {
+        self.id = id;
+    }
+    fn set_entry_data(&mut self, data: Vec<u8>) {
+        self.data = data;
+    }
+    fn set_entry_alive(&mut self, alive: bool) {
+        self.alive = alive;
+    }
+
+    fn get_entry_id(&self) -> u64 {
+        self.id
+    }
+    fn get_entry_alive(&self) -> bool {
+        self.alive
+    }
+    fn get_entry_data(&self) -> &Vec<u8> {
+        &self.data
+    }
+    fn get_entry_size(&self) -> u64 {
+        1 + self.data.len() as u64
     }
 }
 
