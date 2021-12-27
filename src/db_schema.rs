@@ -31,6 +31,10 @@ impl <T: DbStorage<B>, B:DbStorageEntry> DbSchema<T,B> {
             None => Err(DbError::new(DbErrorType::TableNotFound)),
         }
     }
+
+    fn find_or_create_table(&mut self, table_name: String) -> Result<T, DbError> {
+        todo!()
+    }
 }
 #[cfg(test)]
 mod unit_tests {
@@ -73,45 +77,33 @@ mod unit_tests {
         schema.get_entry_from_table(String::from("testy"), 2);
     }
 
+    #[test]
+    fn test_get_entry_from_talbe__no_such_entry() {
+        todo!("Ahhhhh")
+    }
+
+    #[test]
+    fn test_get_entry_from_table__happy_case() {
+        todo!("Ahhhhh")
+    }
+
+    #[test]
+    fn test_insert_entry_into_table__no_such_table() {
+        todo!("Ahhhhh")
+    }
+
+    #[test]
+    fn test_insert_entry_into_table__happy_case() {
+        todo!("Ahhhhh")
+    }
+
+    #[test]
+    fn test_find_or_create_table__table_on_disk() {
+        todo!("Ahhhhh")
+    }
+
+    #[test]
+    fn test_find_or_create_table__table_not_on_disk() {
+        todo!("Ahhhhh")
+    }
 }
-
-
-/*
- #[cfg(test)]
- mod unit_tests {
-     use super::*;
-     use crate::db_file::DbFileEntry;
-     struct MockedDbFile {
-         expect_error: bool,
-         entry_list: Vec<Box<dyn DbStorageEntry>>,
-     
-     
-     #[test]
-     fn test_find_entry_by_id() {
-         todo!("test me");
-     
-     #[test]
-     fn test_find_entry_by_id_non_existant_entry() {
-         todo!("test me");
-     }
-     #[test]
-     fn test_find_entry_by_id_non_existant_table() {
-         todo!("test me");
-     
-     #[test]
-     fn test_insert_entry() {
-         todo!("test me");
-     
-     #[test]
-     fn test_insert_entry_non_existant_table() {
-         todo!("test me");
-     }
-     #[test]
-     fn describe_table() {
-         todo!("test me");
-     
-     #[test]
-     fn describe_table_non_existant_table() {
-         todo!("test me");
-     }
- */
